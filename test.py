@@ -118,11 +118,14 @@ def train_predict(learner, sample_size, X_train, y_train, X_test, y_test):
        - y_test: income testing set
     '''
 
+    tran_y_train = [0 if i[0] < 1 else 1 for i in y_train.values.tolist()]
+    tran_y_test = [0 if i[0] < 1 else 1 for i in y_test.values.tolist()]
+
     results = {}
 
     # TODO: Fit the learner to the training data using slicing with 'sample_size'
     start = time()  # Get start time
-    learner.fit(X_train[:sample_size], y_train[:sample_size])
+    learner.fit(X_train[:sample_size], tran_y_train[:sample_size])
     end = time()  # Get end time
 
     # TODO: Calculate the training time
@@ -135,10 +138,9 @@ def train_predict(learner, sample_size, X_train, y_train, X_test, y_test):
     predictions_train = learner.predict(X_train[:300])
     end = time()  # Get end time
 
-    tran_predictions_test = [0 if i[0] < 1 else 1 for i in learner.predict(X_test)]
-    tran_predictions_train = [0 if i[0] < 1 else 1 for i in learner.predict(X_train[:300])]
-    tran_y_train = [0 if i[0] < 1 else 1 for i in y_train.values.tolist()]
-    tran_y_test = [0 if i[0] < 1 else 1 for i in y_test.values.tolist()]
+    tran_predictions_test = [0 if i < 1 else 1 for i in learner.predict(X_test)]
+    tran_predictions_train = [0 if i < 1 else 1 for i in learner.predict(X_train[:300])]
+
 
     # TODO: Calculate the total prediction time
     results['pred_time'] = end - start
@@ -163,14 +165,16 @@ def train_predict(learner, sample_size, X_train, y_train, X_test, y_test):
 
 
 # TODO: Import the three supervised learning models from sklearn
-from sklearn.neural_network import MLPClassifier
+# from sklearn.neural_network import MLPClassifier
 from sklearn.tree import DecisionTreeClassifier
-from sklearn.svm import SVC
+# from sklearn.svm import SVC
+from sklearn.linear_model import LogisticRegression
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 
 # TODO: Initialize the three models
-# clf_A = MLPClassifier()
+clf_A = LinearDiscriminantAnalysis()
 clf_B = DecisionTreeClassifier()
-clf_C = SVC()
+clf_C = LogisticRegression()
 
 # TODO: Calculate the number of samples for 1%, 10%, and 100% of the training data
 samples_1 = int(len(X_train) * 0.01)
@@ -182,12 +186,20 @@ samples_100 = len(X_train)
 
 # Collect results on the learners
 results = {}
-# for clf in [clf_A, clf_B, clf_C]:
-# for clf in [clf_B, clf_C]:
-#     clf_name = clf.__class__.__name__
-#     results[clf_name] = {}
-#     for i, samples in enumerate([samples_1, samples_10, samples_100]):
-#         results[clf_name][i] = train_predict(clf, samples, X_train, y_train, X_test, y_test)
-#
+for clf in [clf_A, clf_B, clf_C]:
+    clf_name = clf.__class__.__name__
+    results[clf_name] = {}
+    for i, samples in enumerate([samples_1, samples_10, samples_100]):
+        results[clf_name][i] = train_predict(clf, samples, X_train, y_train, X_test, y_test)
 
-print train_predict(clf_B, samples_10, X_train, y_train, X_test, y_test)
+# for res in results.keys():
+#     for i in xrange(3):
+#         print results[res][i]
+
+from sklearn.grid_search import GridSearchCV
+from sklearn.metrics import make_scorer
+
+logit_clf = LogisticRegression()
+parameters = {'kernel':('linear', 'rbf'), 'C':[1, 10]}
+clf = GridSearchCV(logit_clf, parameters)
+clf.fit(X_train, y_train)

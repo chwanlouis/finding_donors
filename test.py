@@ -185,12 +185,12 @@ samples_100 = len(X_train)
 
 
 # Collect results on the learners
-results = {}
-for clf in [clf_A, clf_B, clf_C]:
-    clf_name = clf.__class__.__name__
-    results[clf_name] = {}
-    for i, samples in enumerate([samples_1, samples_10, samples_100]):
-        results[clf_name][i] = train_predict(clf, samples, X_train, y_train, X_test, y_test)
+# results = {}
+# for clf in [clf_A, clf_B, clf_C]:
+#     clf_name = clf.__class__.__name__
+#     results[clf_name] = {}
+#     for i, samples in enumerate([samples_1, samples_10, samples_100]):
+#         results[clf_name][i] = train_predict(clf, samples, X_train, y_train, X_test, y_test)
 
 # for res in results.keys():
 #     for i in xrange(3):
@@ -200,6 +200,12 @@ from sklearn.grid_search import GridSearchCV
 from sklearn.metrics import make_scorer
 
 logit_clf = LogisticRegression()
-parameters = {'kernel':('linear', 'rbf'), 'C':[1, 10]}
+print logit_clf.get_params().keys()
+
+tran_y_train = [0 if i[0] < 1 else 1 for i in y_train.values.tolist()]
+
+parameters = {'C':[float(i)/10 for i in range(1, 11)],
+              'solver':['newton-cg', 'lbfgs', 'liblinear', 'sag']}
+
 clf = GridSearchCV(logit_clf, parameters)
-clf.fit(X_train, y_train)
+clf.fit(X_train, tran_y_train)

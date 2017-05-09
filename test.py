@@ -52,7 +52,7 @@ features_raw[numerical] = scaler.fit_transform(data[numerical])
 features = pd.get_dummies(features_raw)
 
 # TODO: Encode the 'income_raw' data to numerical values
-income = pd.get_dummies(income_raw)
+income = pd.get_dummies(income_raw)['>50K']
 
 # Print the number of features after one-hot encoding
 encoded = list(features.columns)
@@ -73,7 +73,7 @@ print "Testing set has {} samples.".format(X_test.shape[0])
 
 
 def naive_predictor(y_actual):
-    actual_y_list = list(y_actual['>50K'].values)
+    actual_y_list = list(y_actual.values)
     TP = 0
     FP = 0
     for y in actual_y_list:
@@ -118,14 +118,11 @@ def train_predict(learner, sample_size, X_train, y_train, X_test, y_test):
        - y_test: income testing set
     '''
 
-    tran_y_train = [0 if i[0] < 1 else 1 for i in y_train.values.tolist()]
-    tran_y_test = [0 if i[0] < 1 else 1 for i in y_test.values.tolist()]
-
     results = {}
 
     # TODO: Fit the learner to the training data using slicing with 'sample_size'
     start = time()  # Get start time
-    learner.fit(X_train[:sample_size], tran_y_train[:sample_size])
+    learner.fit(X_train[:sample_size], y_train[:sample_size])
     end = time()  # Get end time
 
     # TODO: Calculate the training time
@@ -138,24 +135,20 @@ def train_predict(learner, sample_size, X_train, y_train, X_test, y_test):
     predictions_train = learner.predict(X_train[:300])
     end = time()  # Get end time
 
-    tran_predictions_test = [0 if i < 1 else 1 for i in learner.predict(X_test)]
-    tran_predictions_train = [0 if i < 1 else 1 for i in learner.predict(X_train[:300])]
-
-
     # TODO: Calculate the total prediction time
     results['pred_time'] = end - start
 
     # TODO: Compute accuracy on the first 300 training samples
-    results['acc_train'] = accuracy_score(tran_y_train[:300], tran_predictions_train)
+    results['acc_train'] = accuracy_score(y_train[:300], predictions_train)
 
     # TODO: Compute accuracy on test set
-    results['acc_test'] = accuracy_score(tran_y_test, tran_predictions_test)
+    results['acc_test'] = accuracy_score(y_test, predictions_test)
 
     # TODO: Compute F-score on the the first 300 training samples
-    results['f_train'] = fbeta_score(tran_y_train[:300], tran_predictions_train, beta=0.5)
+    results['f_train'] = fbeta_score(y_train[:300], predictions_train, beta=0.5)
 
     # TODO: Compute F-score on the test set
-    results['f_test'] = fbeta_score(tran_y_test, tran_predictions_test, beta=0.5)
+    results['f_test'] = fbeta_score(y_test, predictions_test, beta=0.5)
 
     # Success
     print "{} trained on {} samples.".format(learner.__class__.__name__, sample_size)
@@ -181,28 +174,23 @@ samples_1 = int(len(X_train) * 0.01)
 samples_10 = int(len(X_train) * 0.1)
 samples_100 = len(X_train)
 
-# print y_test
+#Collect results on the learners
+results = {}
+for clf in [clf_A, clf_B, clf_C]:
+    clf_name = clf.__class__.__name__
+    results[clf_name] = {}
+    for i, samples in enumerate([samples_1, samples_10, samples_100]):
+        results[clf_name][i] = train_predict(clf, samples, X_train, y_train, X_test, y_test)
 
+for res in results.keys():
+    for i in xrange(3):
+        print results[res][i]
 
-# Collect results on the learners
-# results = {}
-# for clf in [clf_A, clf_B, clf_C]:
-#     clf_name = clf.__class__.__name__
-#     results[clf_name] = {}
-#     for i, samples in enumerate([samples_1, samples_10, samples_100]):
-#         results[clf_name][i] = train_predict(clf, samples, X_train, y_train, X_test, y_test)
-
-# for res in results.keys():
-#     for i in xrange(3):
-#         print results[res][i]
 
 # TODO: Import 'GridSearchCV', 'make_scorer', and any other necessary libraries
 from sklearn.linear_model import LogisticRegression
 from sklearn.grid_search import GridSearchCV
 from sklearn.metrics import make_scorer, fbeta_score
-
-tran_y_train = [0 if i[0] < 1 else 1 for i in y_train.values.tolist()]
-tran_y_test = [0 if i[0] < 1 else 1 for i in y_test.values.tolist()]
 
 # TODO: Initialize the classifier
 clf = LogisticRegression()
@@ -219,15 +207,14 @@ grid_obj = GridSearchCV(clf, param_grid=parameters,
                               scoring=scorer)
 
 # TODO: Fit the grid search object to the training data and find the optimal parameters
-grid_fit = grid_obj.fit(X_train, tran_y_train)
+grid_fit = grid_obj.fit(X_train, y_train)
 
 # Get the estimator
 best_clf = grid_fit.best_estimator_
 
 # Make predictions using the unoptimized and model
-predictions = (clf.fit(X_train, tran_y_train)).predict(X_test)
+predictions = (clf.fit(X_train, y_train)).predict(X_test)
 best_predictions = best_clf.predict(X_test)
-y_test = tran_y_test
 
 print "Unoptimized model\n------"
 print "Accuracy score on testing data: {:.4f}".format(accuracy_score(y_test, predictions))
@@ -244,7 +231,7 @@ from sklearn.tree import DecisionTreeClassifier
 clf = DecisionTreeClassifier()
 
 # TODO: Train the supervised model on the training set
-model = clf.fit(X_train, tran_y_train)
+model = clf.fit(X_train, y_train)
 
 # TODO: Extract the feature importances
 importances = model.feature_importances_
@@ -257,7 +244,7 @@ X_train_reduced = X_train[X_train.columns.values[(np.argsort(importances)[::-1])
 X_test_reduced = X_test[X_test.columns.values[(np.argsort(importances)[::-1])[:5]]]
 
 # Train on the "best" model found from grid search earlier
-clf = (clone(best_clf)).fit(X_train_reduced, tran_y_train)
+clf = (clone(best_clf)).fit(X_train_reduced, y_train)
 
 # Make new predictions
 reduced_predictions = clf.predict(X_test_reduced)
